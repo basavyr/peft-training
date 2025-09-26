@@ -49,7 +49,7 @@ if __name__ == "__main__":
             input_prefix="Question: "
         ),
         batched=True,
-        batch_size=2
+        batch_size=1,
     )
 
     tokenized_dataset.set_format(type="torch",
@@ -60,3 +60,41 @@ if __name__ == "__main__":
         test_size=0.1)
     train_dataset = tokenized_dataset["train"]
     eval_dataset = tokenized_dataset["test"]
+
+    # Training arguments
+    training_args = TrainingArguments(
+        output_dir='./results',
+        num_train_epochs=5,
+        per_device_train_batch_size=10,
+        per_device_eval_batch_size=1,
+        warmup_steps=100,
+        weight_decay=0.01,
+        logging_dir='./logs',
+        logging_steps=10,
+        eval_strategy="epoch",
+        eval_steps=50,
+        save_strategy="epoch",
+        save_total_limit=1,
+        load_best_model_at_end=True,
+        metric_for_best_model="eval_loss",
+        greater_is_better=False,
+        report_to="tensorboard",
+        learning_rate=5e-4,
+        lr_scheduler_type="linear",
+    )
+
+    # Initialize trainer
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        processing_class=tokenizer,
+    )
+
+    # Train the model
+    trainer.train()
+
+    # Save the model
+    trainer.save_model('./t5-fine_tune')
+    tokenizer.save_pretrained('./t5-fine_tune')
