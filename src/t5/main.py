@@ -1,19 +1,15 @@
-import sys
-from transformers import AutoTokenizer, AutoModelForMaskedLM
-from transformers import T5Tokenizer, T5ForConditionalGeneration
-
-from utils import select_optimal_device
-
 import time
+import sys
 
 from datasets import load_dataset
+from transformers import T5Tokenizer, T5ForConditionalGeneration
 from transformers import (
-    AutoTokenizer,
-    AutoModelForSeq2SeqLM,
-    DataCollatorForSeq2Seq,
     TrainingArguments,
     Trainer,
 )
+import torch
+
+from utils import select_optimal_device
 
 
 def preprocess_fn(examples, tokenizer: T5Tokenizer, max_input_length: int, max_output_length: int, input_prefix: str):
@@ -28,6 +24,28 @@ def preprocess_fn(examples, tokenizer: T5Tokenizer, max_input_length: int, max_o
     model_inputs['original_inputs'] = inputs
 
     return model_inputs
+
+
+def test_model_load(model_path: str):
+    tokenizer = T5Tokenizer.from_pretrained(model_path, legacy=False)
+    model = T5ForConditionalGeneration.from_pretrained(
+        model_path, device_map='mps')
+
+    model.eval()
+    test_question = "What is discussed in passage 10?"
+    input_text = f"Question: {test_question}"
+
+    input_ids = tokenizer(input_text, return_tensors="pt").to(model.device)
+
+    with torch.no_grad():
+        output = model.generate(inputs=input_ids['input_ids'],
+                                max_length=128,
+                                temperature=0.2,
+                                do_sample=True)
+
+    answer = tokenizer.decode(output[0], skip_special_tokens=True)
+    print(f"\nTest Question: {test_question}")
+    print(f"Generated Answer: {answer}")
 
 
 if __name__ == "__main__":
@@ -64,7 +82,7 @@ if __name__ == "__main__":
     # Training arguments
     training_args = TrainingArguments(
         output_dir='./results',
-        num_train_epochs=5,
+        num_train_epochs=10,
         per_device_train_batch_size=10,
         per_device_eval_batch_size=1,
         warmup_steps=100,
@@ -95,6 +113,8 @@ if __name__ == "__main__":
     # Train the model
     trainer.train()
 
-    # Save the model
+    # # Save the model
     trainer.save_model('./t5-fine_tune')
     tokenizer.save_pretrained('./t5-fine_tune')
+
+    test_model_load('./t5-fine_tune')
