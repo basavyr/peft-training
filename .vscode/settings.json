@@ -1,5 +1,9 @@
 {
     "cSpell.words": [
-        "pycache"
+        "huggingface",
+        "numpy",
+        "pycache",
+        "sentencepiece",
+        "tensorboard"
     ]
 }
