@@ -6,6 +6,7 @@ from transformers import T5Tokenizer, T5ForConditionalGeneration
 from transformers import (
     TrainingArguments,
     Trainer,
+    DataCollatorForSeq2Seq,
 )
 import torch
 
@@ -17,9 +18,9 @@ def preprocess_fn(examples, tokenizer: T5Tokenizer, max_input_length: int, max_o
     targets = examples['answer']
 
     model_inputs = tokenizer(inputs, max_length=max_input_length,
-                             truncation=True, padding="max_length")
+                             truncation=True, padding=False)
     labels = tokenizer(targets, max_length=max_output_length,
-                       truncation=True, padding="max_length")
+                       truncation=True, padding=False)
     model_inputs['labels'] = labels['input_ids']
     model_inputs['original_inputs'] = inputs
 
@@ -58,12 +59,14 @@ if __name__ == "__main__":
 
     ds = load_dataset("basavyr/qa_tocqueville")
 
+    max_input_length = 256
+    max_output_length = 512
     tokenized_dataset = ds.map(
         lambda examples: preprocess_fn(
             examples,
             tokenizer=tokenizer,
-            max_input_length=512,
-            max_output_length=512,
+            max_input_length=max_input_length,
+            max_output_length=max_output_length,
             input_prefix="Question: "
         ),
         batched=True,
@@ -79,10 +82,15 @@ if __name__ == "__main__":
     train_dataset = tokenized_dataset["train"]
     eval_dataset = tokenized_dataset["test"]
 
+    collator_fn = DataCollatorForSeq2Seq(
+        tokenizer=tokenizer,
+        model=model)
+
     # Training arguments
     num_epochs = 20
-    train_bs = 1
-    eval_bs = 1
+    train_bs = 8
+    eval_bs = 8
+    lr = 5e-5
     training_args = TrainingArguments(
         output_dir='./results',
         num_train_epochs=num_epochs,
@@ -100,7 +108,7 @@ if __name__ == "__main__":
         metric_for_best_model="eval_loss",
         greater_is_better=False,
         report_to="tensorboard",
-        learning_rate=5e-4,
+        learning_rate=lr,
         lr_scheduler_type="linear",
     )
 
@@ -110,6 +118,7 @@ if __name__ == "__main__":
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
+        data_collator=collator_fn,  # Add this for efficient batching
         processing_class=tokenizer,
     )
 
