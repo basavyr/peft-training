@@ -80,10 +80,13 @@ if __name__ == "__main__":
     eval_dataset = tokenized_dataset["test"]
 
     # Training arguments
+    num_epochs = 20
+    train_bs = 1
+    eval_bs = 1
     training_args = TrainingArguments(
         output_dir='./results',
-        num_train_epochs=10,
-        per_device_train_batch_size=10,
+        num_train_epochs=num_epochs,
+        per_device_train_batch_size=1,
         per_device_eval_batch_size=1,
         warmup_steps=100,
         weight_decay=0.01,
