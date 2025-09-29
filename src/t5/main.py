@@ -28,10 +28,10 @@ def preprocess_fn(examples, tokenizer: T5Tokenizer, max_input_length: int, max_o
     return model_inputs
 
 
-def test_model_load(model_path: str):
+def test_model_load(model_path: str, device):
     tokenizer = T5Tokenizer.from_pretrained(model_path, legacy=False)
     model = T5ForConditionalGeneration.from_pretrained(
-        model_path, device_map='mps')
+        model_path, device_map=device)
 
     model.eval()
     test_question = "What is discussed in passage 10?"
@@ -134,5 +134,3 @@ if __name__ == "__main__":
     # # Save the model
     trainer.save_model('./t5-fine_tune')
     tokenizer.save_pretrained('./t5-fine_tune')
-
-    test_model_load('./t5-fine_tune')
