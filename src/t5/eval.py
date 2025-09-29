@@ -19,7 +19,9 @@ def get_model_path() -> str:
 def run_inference(input_ids: None, model: T5ForConditionalGeneration, deterministic: bool):
     if deterministic:
         torch.manual_seed(1137)
+
     inf_start = time.perf_counter()
+
     model.eval()
     with torch.no_grad():
         model_output = model.generate(
@@ -28,6 +30,7 @@ def run_inference(input_ids: None, model: T5ForConditionalGeneration, determinis
             temperature=0.15,
             do_sample=True)  # return IDs
     inf_finish = time.perf_counter() - inf_start
+
     print(f'Inference finished: {inf_finish:3f} s')
     return model_output[0]
 
