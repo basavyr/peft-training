@@ -1,6 +1,3 @@
-import time
-import sys
-
 from datasets import load_dataset
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 from transformers import (
@@ -9,6 +6,10 @@ from transformers import (
     DataCollatorForSeq2Seq,
 )
 import torch
+from torch.utils.data import DataLoader
+
+import time
+import sys
 
 from utils import select_optimal_device
 
@@ -18,9 +19,9 @@ def preprocess_fn(examples, tokenizer: T5Tokenizer, max_input_length: int, max_o
     targets = examples['answer']
 
     model_inputs = tokenizer(inputs, max_length=max_input_length,
-                             truncation=True, padding=False)
+                             truncation=True, padding='max_length')
     labels = tokenizer(targets, max_length=max_output_length,
-                       truncation=True, padding=False)
+                       truncation=True, padding='max_length')
     model_inputs['labels'] = labels['input_ids']
     model_inputs['original_inputs'] = inputs
 
@@ -58,9 +59,9 @@ if __name__ == "__main__":
         "google/flan-t5-small", device_map=device)
 
     ds = load_dataset("basavyr/qa_tocqueville")
-
-    max_input_length = 256
+    max_input_length = 128
     max_output_length = 512
+
     tokenized_dataset = ds.map(
         lambda examples: preprocess_fn(
             examples,
@@ -82,26 +83,30 @@ if __name__ == "__main__":
     train_dataset = tokenized_dataset["train"]
     eval_dataset = tokenized_dataset["test"]
 
-    collator_fn = DataCollatorForSeq2Seq(
-        tokenizer=tokenizer,
-        model=model)
+    use_collator = False
+    if use_collator:
+        collator_fn = DataCollatorForSeq2Seq(
+            tokenizer=tokenizer,
+            model=model)
+    else:
+        collator_fn = None
 
     # Training arguments
     num_epochs = 20
     train_bs = 8
     eval_bs = 8
-    lr = 5e-5
+    lr = 5e-4
     training_args = TrainingArguments(
         output_dir='./results',
         num_train_epochs=num_epochs,
-        per_device_train_batch_size=1,
-        per_device_eval_batch_size=1,
+        per_device_train_batch_size=train_bs,
+        per_device_eval_batch_size=eval_bs,
         warmup_steps=100,
         weight_decay=0.01,
         logging_dir='./logs',
         logging_steps=10,
         eval_strategy="epoch",
-        eval_steps=50,
+        eval_steps=100,
         save_strategy="epoch",
         save_total_limit=1,
         load_best_model_at_end=True,
@@ -110,6 +115,7 @@ if __name__ == "__main__":
         report_to="tensorboard",
         learning_rate=lr,
         lr_scheduler_type="linear",
+        dataloader_pin_memory=False,
     )
 
     # Initialize trainer
