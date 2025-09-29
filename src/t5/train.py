@@ -92,9 +92,9 @@ if __name__ == "__main__":
         collator_fn = None
 
     # Training arguments
-    num_epochs = 20
-    train_bs = 8
-    eval_bs = 8
+    num_epochs = 30
+    train_bs = 1
+    eval_bs = 1
     lr = 5e-4
     training_args = TrainingArguments(
         output_dir='./results',
