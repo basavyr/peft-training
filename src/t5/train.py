@@ -6,7 +6,6 @@ from transformers import (
     DataCollatorForSeq2Seq,
 )
 import torch
-from torch.utils.data import DataLoader
 
 import time
 import sys
@@ -28,39 +27,8 @@ def preprocess_fn(examples, tokenizer: T5Tokenizer, max_input_length: int, max_o
     return model_inputs
 
 
-def test_model_load(model_path: str, device):
-    tokenizer = T5Tokenizer.from_pretrained(model_path, legacy=False)
-    model = T5ForConditionalGeneration.from_pretrained(
-        model_path, device_map=device)
-
-    model.eval()
-    test_question = "What is discussed in passage 10?"
-    input_text = f"Question: {test_question}"
-
-    input_ids = tokenizer(input_text, return_tensors="pt").to(model.device)
-
-    with torch.no_grad():
-        output = model.generate(inputs=input_ids['input_ids'],
-                                max_length=128,
-                                temperature=0.2,
-                                do_sample=True)
-
-    answer = tokenizer.decode(output[0], skip_special_tokens=True)
-    print(f"\nTest Question: {test_question}")
-    print(f"Generated Answer: {answer}")
-
-
-if __name__ == "__main__":
-    device = select_optimal_device()
-
-    tokenizer = T5Tokenizer.from_pretrained(
-        "google/flan-t5-small", legacy=False)
-    model = T5ForConditionalGeneration.from_pretrained(
-        "google/flan-t5-small", device_map=device)
-
+def get_tokenized_dataset(tokenizer: T5Tokenizer, max_input_length: int, max_output_length: int, automatic_split: bool = True):
     ds = load_dataset("basavyr/qa_tocqueville")
-    max_input_length = 128
-    max_output_length = 512
 
     tokenized_dataset = ds.map(
         lambda examples: preprocess_fn(
@@ -77,11 +45,21 @@ if __name__ == "__main__":
     tokenized_dataset.set_format(type="torch",
                                  columns=['id', 'question', 'answer', 'input_ids', 'attention_mask', 'labels', 'original_inputs'])
 
-    # create train and test data
-    tokenized_dataset = tokenized_dataset["train"].train_test_split(
-        test_size=0.1)
-    train_dataset = tokenized_dataset["train"]
-    eval_dataset = tokenized_dataset["test"]
+    if automatic_split:
+        # create train and test data (automatic split from the entire dataset)
+        tokenized_dataset = tokenized_dataset["train"].train_test_split(
+            test_size=0.1)
+        return tokenized_dataset["train"], tokenized_dataset["test"]
+    else:
+        raise ValueError("Manual dataset splitting not supported")
+
+
+def main(model_name: str, device: str, output_dir: str):
+    tokenizer = T5Tokenizer.from_pretrained(model_name, legacy=False)
+    model = T5ForConditionalGeneration.from_pretrained(
+        model_name, device_map=device)
+
+    train_dataset, eval_dataset = get_tokenized_dataset(tokenizer, 128, 512)
 
     use_collator = False
     if use_collator:
@@ -97,7 +75,7 @@ if __name__ == "__main__":
     eval_bs = 1
     lr = 5e-4
     training_args = TrainingArguments(
-        output_dir='./results',
+        output_dir=output_dir,
         num_train_epochs=num_epochs,
         per_device_train_batch_size=train_bs,
         per_device_eval_batch_size=eval_bs,
@@ -106,7 +84,7 @@ if __name__ == "__main__":
         logging_dir='./logs',
         logging_steps=10,
         eval_strategy="epoch",
-        eval_steps=100,
+        eval_steps=50,
         save_strategy="epoch",
         save_total_limit=1,
         load_best_model_at_end=True,
@@ -129,8 +107,19 @@ if __name__ == "__main__":
     )
 
     # Train the model
-    trainer.train()
+    trainer.train(resume_from_checkpoint=True)
 
     # # Save the model
-    trainer.save_model('./t5-fine_tune')
-    tokenizer.save_pretrained('./t5-fine_tune')
+    trainer.save_model(output_dir)
+    tokenizer.save_pretrained(output_dir)
+
+
+if __name__ == "__main__":
+    model_name = "google/flan-t5-small"
+
+    device = select_optimal_device()
+    output_dir = "results"
+
+    main(model_name=model_name,
+         device=device,
+         output_dir=output_dir)
