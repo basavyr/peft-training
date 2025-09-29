@@ -5,6 +5,8 @@ import time
 import sys
 import argparse
 
+from utils import select_optimal_device
+
 
 def get_model_path() -> str:
     parser = argparse.ArgumentParser(
@@ -30,7 +32,7 @@ def run_inference(input_ids: None, model: T5ForConditionalGeneration, determinis
     return model_output[0]
 
 
-def main(deterministic: bool):
+def main(deterministic: bool, device):
     if deterministic:
         torch.manual_seed(1137)
         passage_id = 10
@@ -40,8 +42,9 @@ def main(deterministic: bool):
     model_path: str = get_model_path()
     try:
         model = T5ForConditionalGeneration.from_pretrained(
-            model_path, device_map='mps')
+            model_path, device_map=device)
         tokenizer = T5Tokenizer.from_pretrained(model_path)
+        print(f'Loaded {model._get_name()} on < device = {model.device} >')
     except Exception:
         raise FileNotFoundError(f"Incorrect model path: {model_path}")
 
@@ -58,4 +61,5 @@ def main(deterministic: bool):
 
 
 if __name__ == "__main__":
-    main(deterministic=False)
+    device = select_optimal_device()
+    main(deterministic=True, device=device)

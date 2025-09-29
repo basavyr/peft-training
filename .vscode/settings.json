@@ -2,6 +2,7 @@
     "cSpell.words": [
         "huggingface",
         "numpy",
+        "PEFT",
         "pycache",
         "sentencepiece",
         "tensorboard"
