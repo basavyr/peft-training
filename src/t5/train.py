@@ -121,7 +121,7 @@ if __name__ == "__main__":
     train_model(model_name=model_name,
                 device=device,
                 output_dir=output_dir,
-                num_epochs=1,
+                num_epochs=5,
                 train_batch_size=4,
                 eval_batch_size=4,
                 lr=5e-4,

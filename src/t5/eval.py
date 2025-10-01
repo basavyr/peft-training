@@ -1,11 +1,12 @@
 import torch
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 
+
 import time
 import sys
 import argparse
 
-from utils import select_optimal_device, DEFAULT_SEED, RESULTS_DIR, get_t5_model, validate_checkpoint_dir
+from utils import select_optimal_device, DEFAULT_SEED, RESULTS_DIR, get_t5_model, validate_checkpoint_dir, print_trainable_parameters
 
 
 def get_model_path() -> str:
@@ -62,6 +63,7 @@ def eval_model(model_name: str, deterministic: bool, device: str):
                                  model=model)
     answer = tokenizer.decode(model_output, skip_special_tokens=True)
 
+    print_trainable_parameters(model)
     print(question)
     print(f'Answer: {answer}')
 
