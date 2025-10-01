@@ -2,8 +2,12 @@
     "cSpell.words": [
         "huggingface",
         "numpy",
+        "PEFT",
         "pycache",
         "sentencepiece",
+        "spiece",
         "tensorboard"
-    ]
+    ],
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    "python-envs.pythonProjects": []
 }
