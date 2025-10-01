@@ -1,6 +1,7 @@
 import torch
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 
+from peft import PeftConfig, PeftModel
 
 import time
 import sys
@@ -48,8 +49,11 @@ def eval_model(model_name: str, deterministic: bool, device: str):
         print(
             f'Invalid checkpoint. Using the original model name: {model_name}')
     try:
+        config = PeftConfig.from_pretrained(model_name)
         model = T5ForConditionalGeneration.from_pretrained(
-            model_name, device_map=device)
+            config.base_model_name_or_path,
+            device_map=device)
+        model = PeftModel.from_pretrained(model, model_name)
         tokenizer = T5Tokenizer.from_pretrained(model_name, legacy=False)
         print(f'Loaded {model._get_name()} on < device = {model.device} >')
     except Exception:
