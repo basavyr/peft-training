@@ -7,8 +7,18 @@ DEFAULT_SEED = 1137
 
 
 def print_trainable_parameters(model: torch.nn.Module):
-    for k, v in model.named_parameters():
-        print(k, v.shape)
+    """
+    Source: https://github.com/huggingface/peft/issues/41
+    """
+    all_params = 0
+    trainable_params = 0
+    for _, p in model.named_parameters():
+        all_params += p.numel()
+        if p.requires_grad:
+            trainable_params += p.numel()
+
+    print(f'All params: {all_params} (trainable: {trainable_params})')
+    print(f'Trainable {(trainable_params/all_params*100):.3f} %')
 
 
 def select_optimal_device():
