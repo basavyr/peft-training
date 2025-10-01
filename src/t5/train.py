@@ -10,6 +10,8 @@ import torch
 import time
 import sys
 
+from peft import get_peft_model, LoraConfig
+
 from utils import select_optimal_device, get_t5_model
 
 
@@ -67,6 +69,18 @@ def train_model(model_name: str, device: str, output_dir: str, num_epochs: int, 
             model=model)
     else:
         collator_fn = None
+
+    # hint for target modules: https://huggingface.co/geektech/t5-large-lora/blob/main/adapter_config.json
+    config = LoraConfig(
+        r=32,
+        lora_alpha=1,
+        target_modules=["q", "v"],
+        lora_dropout=0.1,
+        bias="none",
+        modules_to_save=["classifier"],
+    )
+    model = get_peft_model(model, config)
+    model.print_trainable_parameters()
 
     training_args = TrainingArguments(
         output_dir=output_dir,
