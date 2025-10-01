@@ -17,7 +17,7 @@ def get_model_path() -> str:
     return str(parser.parse_args().path)
 
 
-def run_inference(input_ids: None, model: T5ForConditionalGeneration):
+def run_inference(input_ids: torch.Tensor, model: T5ForConditionalGeneration):
     inf_start = time.perf_counter()
 
     model.eval()
@@ -29,7 +29,7 @@ def run_inference(input_ids: None, model: T5ForConditionalGeneration):
             do_sample=True)  # return IDs
     inf_finish = time.perf_counter() - inf_start
 
-    print(f'Inference finished: {inf_finish:3f} s')
+    print(f'Inference finished: {inf_finish:.3f} s')
     return model_output[0]
 
 

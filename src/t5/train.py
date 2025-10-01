@@ -13,14 +13,14 @@ import sys
 from utils import select_optimal_device, get_t5_model
 
 
-def preprocess_fn(examples, tokenizer: T5Tokenizer, max_input_length: int, max_output_length: int, input_prefix: str):
+def preprocess_fn(examples, tokenizer: T5Tokenizer, max_input_length: int, max_output_length: int, input_prefix: str, padding_strategy: str = 'max_length'):
     inputs = [f'{input_prefix}{q}' for q in examples['question']]
     targets = examples['answer']
 
-    model_inputs = tokenizer(inputs, max_length=max_input_length,
-                             truncation=True, padding='max_length')
+    model_inputs = tokenizer(
+        inputs, max_length=max_input_length, truncation=True, padding=padding_strategy)
     labels = tokenizer(targets, max_length=max_output_length,
-                       truncation=True, padding='max_length')
+                       truncation=True, padding=padding_strategy)
     model_inputs['labels'] = labels['input_ids']
     model_inputs['original_inputs'] = inputs
 
