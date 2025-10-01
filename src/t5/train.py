@@ -10,7 +10,7 @@ import torch
 import time
 import sys
 
-from utils import select_optimal_device
+from utils import select_optimal_device, get_t5_model
 
 
 def preprocess_fn(examples, tokenizer: T5Tokenizer, max_input_length: int, max_output_length: int, input_prefix: str):
@@ -54,14 +54,13 @@ def get_tokenized_dataset(tokenizer: T5Tokenizer, max_input_length: int, max_out
         raise ValueError("Manual dataset splitting not supported")
 
 
-def main(model_name: str, device: str, output_dir: str):
+def train_model(model_name: str, device: str, output_dir: str, num_epochs: int, train_batch_size: int, eval_batch_size: int, lr: float, use_collator: bool = False):
     tokenizer = T5Tokenizer.from_pretrained(model_name, legacy=False)
     model = T5ForConditionalGeneration.from_pretrained(
         model_name, device_map=device)
 
     train_dataset, eval_dataset = get_tokenized_dataset(tokenizer, 128, 512)
 
-    use_collator = False
     if use_collator:
         collator_fn = DataCollatorForSeq2Seq(
             tokenizer=tokenizer,
@@ -69,16 +68,11 @@ def main(model_name: str, device: str, output_dir: str):
     else:
         collator_fn = None
 
-    # Training arguments
-    num_epochs = 30
-    train_bs = 1
-    eval_bs = 1
-    lr = 5e-4
     training_args = TrainingArguments(
         output_dir=output_dir,
         num_train_epochs=num_epochs,
-        per_device_train_batch_size=train_bs,
-        per_device_eval_batch_size=eval_bs,
+        per_device_train_batch_size=train_batch_size,
+        per_device_eval_batch_size=eval_batch_size,
         warmup_steps=100,
         weight_decay=0.01,
         logging_dir='./logs',
@@ -106,8 +100,12 @@ def main(model_name: str, device: str, output_dir: str):
         processing_class=tokenizer,
     )
 
-    # Train the model
-    trainer.train(resume_from_checkpoint=True)
+    try:
+        # Train the model
+        trainer.train(resume_from_checkpoint=True)
+    except ValueError:
+        print(f'No checkpoint available. Fine-tuning from scratch...')
+        trainer.train()
 
     # # Save the model
     trainer.save_model(output_dir)
@@ -115,11 +113,16 @@ def main(model_name: str, device: str, output_dir: str):
 
 
 if __name__ == "__main__":
-    model_name = "google/flan-t5-small"
-
     device = select_optimal_device()
     output_dir = "results"
+    model_name = get_t5_model("s")
 
-    main(model_name=model_name,
-         device=device,
-         output_dir=output_dir)
+    # Training arguments
+    train_model(model_name=model_name,
+                device=device,
+                output_dir=output_dir,
+                num_epochs=1,
+                train_batch_size=4,
+                eval_batch_size=4,
+                lr=5e-4,
+                use_collator=False)
