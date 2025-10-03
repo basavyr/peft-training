@@ -1,3 +1,5 @@
+from transformers import Trainer
+from transformers import TrainerCallback
 from datasets import load_dataset
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 from transformers import (
@@ -5,14 +7,25 @@ from transformers import (
     Trainer,
     DataCollatorForSeq2Seq,
 )
-import torch
+from peft import get_peft_model, LoraConfig, TaskType
 
 import time
 import sys
-
-from peft import get_peft_model, LoraConfig
+import argparse
+from typing import Optional
 
 from utils import select_optimal_device, get_t5_model
+
+
+def use_peft() -> bool:
+    parser = argparse.ArgumentParser(
+        prog="Training with PEFT", description="Training with PEFT")
+
+    parser.add_argument("--peft", action='store_true', required=False,
+                        default=False, help="Use PEFT (LORA) for fine-tuning")
+    args = parser.parse_args()
+
+    return args.peft
 
 
 def preprocess_fn(examples, tokenizer: T5Tokenizer, max_input_length: int, max_output_length: int, input_prefix: str, padding_strategy: str = 'max_length'):
@@ -56,13 +69,15 @@ def get_tokenized_dataset(tokenizer: T5Tokenizer, max_input_length: int, max_out
         raise ValueError("Manual dataset splitting not supported")
 
 
-def train_model(model_name: str, device: str, output_dir: str, num_epochs: int, train_batch_size: int, eval_batch_size: int, lr: float, use_collator: bool = False):
+def train_model(model_name: str, device: str, output_dir: str, peft_enabled: bool, num_epochs: int, train_batch_size: int, eval_batch_size: int, lr: float, use_collator: bool = False):
     tokenizer = T5Tokenizer.from_pretrained(model_name, legacy=False)
     model = T5ForConditionalGeneration.from_pretrained(
         model_name, device_map=device)
 
     train_dataset, eval_dataset = get_tokenized_dataset(tokenizer, 128, 512)
-
+    # # get the checkpoint prefix
+    # train_checkpoint_number = num_epochs*(len(train_dataset)//train_batch_size)
+    # print(f'checkpoint-{train_checkpoint_number}')
     if use_collator:
         collator_fn = DataCollatorForSeq2Seq(
             tokenizer=tokenizer,
@@ -70,17 +85,27 @@ def train_model(model_name: str, device: str, output_dir: str, num_epochs: int, 
     else:
         collator_fn = None
 
-    # hint for target modules: https://huggingface.co/geektech/t5-large-lora/blob/main/adapter_config.json
-    config = LoraConfig(
-        r=32,
-        lora_alpha=1,
-        target_modules=["q", "v"],
-        lora_dropout=0.1,
-        bias="none",
-        modules_to_save=["classifier"],
-    )
-    model = get_peft_model(model, config)
-    model.print_trainable_parameters()
+    output_dir = "results/base"
+    if peft_enabled:
+        # hint for target modules: https://huggingface.co/geektech/t5-large-lora/blob/main/adapter_config.json
+        # similar config: https://medium.com/nerd-for-tech/optimizing-flan-t5-a-practical-guide-to-peft-with-lora-soft-prompts-3bab39e4a137
+        rank = 4
+        alpha = 8
+        targets_l = ["q", "v", "o", "k", "wi", "wo"]
+        targets_s = ["q", "v"]
+        lora_config = LoraConfig(
+            r=rank,
+            lora_alpha=alpha,
+            target_modules=targets_s,
+            lora_dropout=0.05,
+            bias="none",
+            modules_to_save=["classifier"],
+            task_type=TaskType.SEQ_2_SEQ_LM  # FLAN-T5
+        )
+        model = get_peft_model(model, lora_config)
+        print(f'Using LORA: {lora_config}')
+        model.print_trainable_parameters()
+        output_dir = f"results/peft-lora_r{rank}_a{alpha}"
 
     training_args = TrainingArguments(
         output_dir=output_dir,
@@ -113,29 +138,31 @@ def train_model(model_name: str, device: str, output_dir: str, num_epochs: int, 
         processing_class=tokenizer,
     )
 
-    try:
-        # Train the model
-        trainer.train(resume_from_checkpoint=True)
-    except ValueError:
-        print(f'No checkpoint available. Fine-tuning from scratch...')
-        trainer.train()
+    # try:
+    #     # Train the model
+    #     # source: https://stackoverflow.com/questions/76217781/how-to-continue-training-with-huggingface-trainer
+    #     trainer.train(resume_from_checkpoint=True)
+    # except ValueError:
+    #     print(f'No checkpoint available. Fine-tuning from scratch...')
+    trainer.train()
 
-    # # Save the model
-    trainer.save_model(output_dir)
-    tokenizer.save_pretrained(output_dir)
+    trainer.save_model(output_dir=output_dir)
+    tokenizer.save_pretrained(save_directory=output_dir)
 
 
 if __name__ == "__main__":
     device = select_optimal_device()
     output_dir = "results"
     model_name = get_t5_model("s")
+    peft_enabled: bool = use_peft()
 
     # Training arguments
     train_model(model_name=model_name,
                 device=device,
                 output_dir=output_dir,
+                peft_enabled=peft_enabled,
                 num_epochs=5,
-                train_batch_size=4,
-                eval_batch_size=4,
+                train_batch_size=32,
+                eval_batch_size=32,
                 lr=5e-4,
                 use_collator=False)
