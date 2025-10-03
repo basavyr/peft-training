@@ -1,5 +1,6 @@
 {
     "cSpell.words": [
+        "getpid",
         "huggingface",
         "numpy",
         "PEFT",

@@ -9,6 +9,7 @@ from transformers import (
 )
 from peft import get_peft_model, LoraConfig, TaskType
 
+import os
 import time
 import sys
 import argparse
@@ -16,6 +17,18 @@ from typing import Optional
 import psutil
 
 from utils import select_optimal_device, get_t5_model
+
+
+# Create a custom callback to track memory
+class MemoryTrackingCallback(TrainerCallback):
+    def __init__(self):
+        self.max_memory = 0
+        self.process = psutil.Process(os.getpid())
+
+    def on_step_end(self, args, state, control, **kwargs):
+        current_memory = self.process.memory_info().rss / (1024 ** 3)
+        self.max_memory = max(self.max_memory, current_memory)
+        return control
 
 
 def use_peft() -> bool:
@@ -71,6 +84,13 @@ def get_tokenized_dataset(tokenizer: T5Tokenizer, max_input_length: int, max_out
 
 
 def train_model(model_name: str, device: str, output_dir: str, peft_enabled: bool, num_epochs: int, train_batch_size: int, eval_batch_size: int, lr: float, use_collator: bool = False):
+
+    # Initialize memory tracking at the start
+    process = psutil.Process(os.getpid())
+    initial_memory = process.memory_info().rss / (1024 ** 3)  # Convert to GB
+    max_memory = initial_memory
+    memory_callback = MemoryTrackingCallback()
+
     tokenizer = T5Tokenizer.from_pretrained(model_name, legacy=False)
     model = T5ForConditionalGeneration.from_pretrained(
         model_name, device_map=device)
@@ -97,7 +117,7 @@ def train_model(model_name: str, device: str, output_dir: str, peft_enabled: boo
         lora_config = LoraConfig(
             r=rank,
             lora_alpha=alpha,
-            target_modules=targets_s,
+            target_modules=targets_l,
             lora_dropout=0.05,
             bias="none",
             modules_to_save=["classifier"],
@@ -137,6 +157,7 @@ def train_model(model_name: str, device: str, output_dir: str, peft_enabled: boo
         eval_dataset=eval_dataset,
         data_collator=collator_fn,  # Add this for efficient batching
         processing_class=tokenizer,
+        callbacks=[memory_callback],
     )
 
     # try:
@@ -147,6 +168,16 @@ def train_model(model_name: str, device: str, output_dir: str, peft_enabled: boo
     # except ValueError:
     #     print(f'No checkpoint available. Fine-tuning from scratch...')
     trainer.train()
+
+    # Get final max memory
+    final_memory = process.memory_info().rss / (1024 ** 3)
+    max_memory_used = max(memory_callback.max_memory, final_memory)
+    print(f"\n{'='*50}")
+    print(f"Memory Statistics:")
+    print(f"Initial Memory: {initial_memory:.2f} GB")
+    print(f"Max Memory Used: {max_memory_used:.2f} GB")
+    print(f"Memory Increase: {max_memory_used - initial_memory:.2f} GB")
+    print(f"{'='*50}\n")
 
     trainer.save_model(output_dir=output_dir)
     tokenizer.save_pretrained(save_directory=output_dir)
@@ -164,7 +195,7 @@ if __name__ == "__main__":
                 output_dir=output_dir,
                 peft_enabled=peft_enabled,
                 num_epochs=1,
-                train_batch_size=16,
-                eval_batch_size=16,
+                train_batch_size=32,
+                eval_batch_size=32,
                 lr=5e-4,
                 use_collator=False)
