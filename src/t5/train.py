@@ -13,6 +13,7 @@ import time
 import sys
 import argparse
 from typing import Optional
+import psutil
 
 from utils import select_optimal_device, get_t5_model
 
@@ -141,6 +142,7 @@ def train_model(model_name: str, device: str, output_dir: str, peft_enabled: boo
     # try:
     #     # Train the model
     #     # source: https://stackoverflow.com/questions/76217781/how-to-continue-training-with-huggingface-trainer
+    #     # source: https://discuss.huggingface.co/t/how-to-resume-training-from-a-checkpoint-using-huggingface-trainer/153879
     #     trainer.train(resume_from_checkpoint=True)
     # except ValueError:
     #     print(f'No checkpoint available. Fine-tuning from scratch...')
@@ -161,8 +163,8 @@ if __name__ == "__main__":
                 device=device,
                 output_dir=output_dir,
                 peft_enabled=peft_enabled,
-                num_epochs=5,
-                train_batch_size=32,
-                eval_batch_size=32,
+                num_epochs=1,
+                train_batch_size=16,
+                eval_batch_size=16,
                 lr=5e-4,
                 use_collator=False)
