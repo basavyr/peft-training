@@ -1,12 +1,12 @@
-from transformers import Trainer
-from transformers import TrainerCallback
 from datasets import load_dataset
-from transformers import T5Tokenizer, T5ForConditionalGeneration
 from transformers import (
+    T5Tokenizer,
+    T5ForConditionalGeneration,
     TrainingArguments,
     Trainer,
     DataCollatorForSeq2Seq,
 )
+from transformers import TrainerCallback
 from peft import get_peft_model, LoraConfig, TaskType
 
 import os
@@ -91,7 +91,7 @@ def get_tokenized_dataset(tokenizer: T5Tokenizer, max_input_length: int, max_out
         raise ValueError("Manual dataset splitting not supported")
 
 
-def train_model(model_name: str, device: str, output_dir: str, peft_enabled: bool, num_epochs: int, train_batch_size: int, eval_batch_size: int, lr: float, use_collator: bool = False):
+def train_model(model_name: str, device: str, peft_enabled: bool, num_epochs: int, train_batch_size: int, eval_batch_size: int, lr: float, use_collator: bool = False):
     process = psutil.Process(os.getpid())
 
     initial_memory = get_memory_usage(process)
@@ -192,14 +192,12 @@ def train_model(model_name: str, device: str, output_dir: str, peft_enabled: boo
 
 if __name__ == "__main__":
     device = select_optimal_device()
-    output_dir = "results"
     model_name = get_t5_model("s")
     peft_enabled: bool = use_peft()
 
     # Training arguments
     train_model(model_name=model_name,
                 device=device,
-                output_dir=output_dir,
                 peft_enabled=peft_enabled,
                 num_epochs=1,
                 train_batch_size=32,
