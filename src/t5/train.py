@@ -19,14 +19,22 @@ import psutil
 from utils import select_optimal_device, get_t5_model
 
 
-# Create a custom callback to track memory
+def get_memory_usage(process: psutil.Process):
+    """Get memory usage as shown in Activity Monitor"""
+    mem_info = process.memory_info()
+    # Use rss (Resident Set Size) which matches Activity Monitor's "Memory" column
+    return mem_info.rss / (1024 ** 3)  # Convert to GB
+
+
+# Create callback to track memory
 class MemoryTrackingCallback(TrainerCallback):
-    def __init__(self):
+    def __init__(self, process):
         self.max_memory = 0
-        self.process = psutil.Process(os.getpid())
+        self.process = process
 
     def on_step_end(self, args, state, control, **kwargs):
-        current_memory = self.process.memory_info().rss / (1024 ** 3)
+        mem_info = self.process.memory_info()
+        current_memory = mem_info.rss / (1024 ** 3)
         self.max_memory = max(self.max_memory, current_memory)
         return control
 
@@ -84,12 +92,11 @@ def get_tokenized_dataset(tokenizer: T5Tokenizer, max_input_length: int, max_out
 
 
 def train_model(model_name: str, device: str, output_dir: str, peft_enabled: bool, num_epochs: int, train_batch_size: int, eval_batch_size: int, lr: float, use_collator: bool = False):
-
-    # Initialize memory tracking at the start
     process = psutil.Process(os.getpid())
-    initial_memory = process.memory_info().rss / (1024 ** 3)  # Convert to GB
+
+    initial_memory = get_memory_usage(process)
     max_memory = initial_memory
-    memory_callback = MemoryTrackingCallback()
+    memory_callback = MemoryTrackingCallback(process)
 
     tokenizer = T5Tokenizer.from_pretrained(model_name, legacy=False)
     model = T5ForConditionalGeneration.from_pretrained(
@@ -117,7 +124,7 @@ def train_model(model_name: str, device: str, output_dir: str, peft_enabled: boo
         lora_config = LoraConfig(
             r=rank,
             lora_alpha=alpha,
-            target_modules=targets_l,
+            target_modules=targets_s,
             lora_dropout=0.05,
             bias="none",
             modules_to_save=["classifier"],
