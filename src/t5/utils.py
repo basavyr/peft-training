@@ -9,6 +9,9 @@ DEFAULT_SEED = 1137
 def print_trainable_parameters(model: torch.nn.Module):
     """
     Source: https://github.com/huggingface/peft/issues/41
+
+    Docs: 
+    How to Estimate the Number of Parameters in Transformer models: https://towardsdatascience.com/how-to-estimate-the-number-of-parameters-in-transformer-models-ca0f57d8dff0/
     """
     all_params = 0
     trainable_params = 0
@@ -31,6 +34,10 @@ def select_optimal_device():
 
 
 def get_t5_model(size: str = "s"):
+    """
+    - Get the original Text-to-Text Transfer Transformer (T5)
+    - Original paper: https://arxiv.org/pdf/1910.10683
+    """
     if size == "s":
         # 77M
         return "google/flan-t5-small"

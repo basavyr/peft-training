@@ -8,3 +8,4 @@ protobuf==6.32.1
 sentencepiece==0.2.1
 tensorboard==2.20.0
 tensorboard-data-server==0.7.2
+peft==0.17.1

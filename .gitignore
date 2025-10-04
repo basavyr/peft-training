@@ -5,3 +5,4 @@ src/t5/.python-version
 src/t5/logs
 src/t5/results
 src/t5/t5-fine_tune
+src/t5/logs-tensorboard

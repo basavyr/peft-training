@@ -1,6 +1,8 @@
 import torch
 from transformers import T5Tokenizer, T5ForConditionalGeneration
+from transformers.trainer_utils import get_last_checkpoint
 
+from peft import PeftConfig, PeftModel
 
 import time
 import sys
@@ -33,42 +35,44 @@ def run_inference(input_ids: torch.Tensor, model: T5ForConditionalGeneration):
     return model_output[0]
 
 
-def eval_model(model_name: str, deterministic: bool, device: str):
+def eval_model(path: str, deterministic: bool, device: str):
     if deterministic:
         torch.manual_seed(DEFAULT_SEED)
         passage_id = 10
     else:
         passage_id = torch.randint(0, 100, (1,)).item()
 
-    model_path: str = get_model_path()
-    if validate_checkpoint_dir(model_path):
-        model_name = model_path
-        print(f'Found valid model checkpoint: {model_name}')
-    else:
-        print(
-            f'Invalid checkpoint. Using the original model name: {model_name}')
+    tokenizer = T5Tokenizer.from_pretrained(path, legacy=False)
+    original_model = T5ForConditionalGeneration.from_pretrained(
+        path,
+        device_map=device)
+
     try:
-        model = T5ForConditionalGeneration.from_pretrained(
-            model_name, device_map=device)
-        tokenizer = T5Tokenizer.from_pretrained(model_name, legacy=False)
-        print(f'Loaded {model._get_name()} on < device = {model.device} >')
-    except Exception:
-        raise FileNotFoundError(
-            f"Incorrect model path or model name: {model_name}")
+        peft_model = PeftModel.from_pretrained(original_model,
+                                               path,
+                                               is_trainable=False)
+    except ValueError:
+        print(f'Could not find peft model')
+        peft_model = original_model
+
+    print(
+        f'Loaded {peft_model._get_name()} on < device = {peft_model.device} >')
 
     question = f"Question: What is discussed in passage {passage_id} ?"
-    model_input = tokenizer(question, return_tensors='pt').to(model.device)
+    model_input = tokenizer(
+        question, return_tensors='pt').to(peft_model.device)
 
     model_output = run_inference(input_ids=model_input['input_ids'],
-                                 model=model)
+                                 model=peft_model)
     answer = tokenizer.decode(model_output, skip_special_tokens=True)
 
-    print_trainable_parameters(model)
+    # print_trainable_parameters(peft_model)
     print(question)
     print(f'Answer: {answer}')
 
 
 if __name__ == "__main__":
-    device = select_optimal_device()
-    model_name = get_t5_model(size="s")
-    eval_model(model_name=model_name, deterministic=True, device=device)
+    model_path = get_model_path()
+    eval_model(path=model_path,
+               deterministic=True,
+               device=select_optimal_device())
