@@ -8,3 +8,4 @@ src/t5/results
 src/t5/t5-fine_tune
 src/t5/logs-tensorboard
 presentation/~$LORA-RPoenaru.pptx
+tests/.python-version
