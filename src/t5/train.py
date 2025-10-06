@@ -135,6 +135,10 @@ def train_model(model_name: str, device: str, peft_enabled: bool, num_epochs: in
         model.print_trainable_parameters()
         output_dir = f"results/peft-lora_r{rank}_a{alpha}"
 
+    # Comment on evaluation strategy (former argument eval_strategy)
+    # https://naman1011.medium.com/llm-deployment-with-vllm-62e9d912a638
+    # https://github.com/huggingface/setfit/issues/512
+    # https://github.com/huggingface/transformers/issues/7974
     training_args = TrainingArguments(
         output_dir=output_dir,
         num_train_epochs=num_epochs,
