@@ -118,7 +118,7 @@ def train_model(model_name: str, device: str, peft_enabled: bool, num_epochs: in
         # hint for target modules: https://huggingface.co/geektech/t5-large-lora/blob/main/adapter_config.json
         # similar config: https://medium.com/nerd-for-tech/optimizing-flan-t5-a-practical-guide-to-peft-with-lora-soft-prompts-3bab39e4a137
         rank = 8
-        alpha = 4 * rank
+        alpha = 4
         targets_l = ["q", "v", "o", "k", "wi", "wo"]
         targets_s = ["q", "v"]
         lora_config = LoraConfig(
