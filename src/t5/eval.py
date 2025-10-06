@@ -1,5 +1,7 @@
 import torch
 from transformers import T5Tokenizer, T5ForConditionalGeneration
+
+# how to get last checkpoint: https://github.com/huggingface/trl/issues/674
 from transformers.trainer_utils import get_last_checkpoint
 
 from peft import PeftConfig, PeftModel
