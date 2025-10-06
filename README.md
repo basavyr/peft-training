@@ -20,3 +20,4 @@ python3 eval.py -p results/checkpoint-882
 4. For icons: https://icons8.com/icons/set/link--style-ios
 5. Discussion on the value of alpha and r within LORA [here](https://www.reddit.com/r/LocalLLaMA/comments/17pw7bv/eternal_question_what_rank_r_and_alpha_to_use_in/)
 6. Tutorial on fine-tuning with LORA and quantized LORA [here](https://www.databricks.com/blog/efficient-fine-tuning-lora-guide-llms)
+7. Although not discussed in the presentation, we also can use VLLM to test models. A medium post is available [here](https://medium.com/@yevhen.herasimov/serving-llama3-8b-on-cpu-using-vllm-d41e3f1731f7)
