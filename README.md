@@ -59,6 +59,15 @@ Experiment with $r=8$ and $alpha=32$.
 {'loss': 29.5352, 'grad_norm': 9.144457817077637, 'learning_rate': 0.000145, 'epoch': 0.94}
 ```
 
+Final (optional) experiment for $r=8$ and $alpha=4$.
+```
+Using LORA: LoraConfig(task_type=<TaskType.SEQ_2_SEQ_LM: 'SEQ_2_SEQ_LM'>, peft_type=<PeftType.LORA: 'LORA'>, auto_mapping=None, base_model_name_or_path='google/flan-t5-small', revision=None, inference_mode=False, r=8, target_modules={'v', 'q'}, exclude_modules=None, lora_alpha=4, lora_dropout=0.05, fan_in_fan_out=False, bias='none', use_rslora=False, modules_to_save=['classifier'], init_lora_weights=True, layers_to_transform=None, layers_pattern=None, rank_pattern={}, alpha_pattern={}, megatron_config=None, megatron_core='megatron.core', trainable_token_indices=None, loftq_config={}, eva_config=None, corda_config=None, use_dora=False, use_qalora=False, qalora_group_size=16, layer_replication=None, runtime_config=LoraRuntimeConfig(ephemeral_gpu_offload=False), lora_bias=False, target_parameters=None)
+trainable params: 344,064 || all params: 77,305,216 || trainable%: 0.4451
+{'loss': 31.0306, 'grad_norm': 0.6093101501464844, 'learning_rate': 4.4999999999999996e-05, 'epoch': 0.31}                                                                               
+{'loss': 30.9857, 'grad_norm': 0.9116100072860718, 'learning_rate': 9.5e-05, 'epoch': 0.62}                                                                                              
+{'loss': 30.847, 'grad_norm': 1.1311554908752441, 'learning_rate': 0.000145, 'epoch': 0.94}
+```
+
 ## Memory Efficiency
 
 For a `T5-small` model, with `per_device_train_batch_size=32`
